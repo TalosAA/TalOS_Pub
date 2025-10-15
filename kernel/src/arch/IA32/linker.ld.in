@@ -1,0 +1,72 @@
+#include <IA32/memdefs.h>
+
+/* The bootloader will look at this image and start execution at the symbol
+   designated at the entry point. */
+ENTRY(_start)
+
+/* Tell where the various sections of the object files will be put in the final
+   kernel image. */
+SECTIONS
+{
+
+  /* Begin putting sections at 1 MiB, a conventional place for kernels to be
+     loaded at by the bootloader. */
+   . = 1M; 
+  /* First put the multiboot header, as it is required to be put very early
+     early in the image or the bootloader won't recognize the file format.
+     Next we'll put the .text section. */
+
+  _kernel_start = .;
+  _ker_ro_area_start = .;
+  /* Read-only data. */
+  .text 1M :
+  {
+    KEEP(*(.text.boot))
+    *(.text)
+    *(.init)
+    *(.fini)
+  }
+
+  /* Read-only data. */
+  .rodata BLOCK(4K) :
+  {
+    *(.rodata)
+    . = ALIGN(4K);
+  }
+  _ker_ro_area_end = .;
+  _ker_ro_area_size = _ker_ro_area_end - _ker_ro_area_start;
+
+  _ker_data_start = .;
+  _os_data_start = .;
+  .OS_DATA BLOCK(4K) :
+  {
+    KEEP(*(.OS_DATA))
+    . = ALIGN(4K);
+  }
+  _os_data_end = .;
+  _os_data_size = _os_data_end - _os_data_start;
+
+  /* Read-write data (initialized) */
+  .data BLOCK(4K) :
+  {
+    KEEP(*(.stack))
+    *(.data)
+  }
+
+  /* Read-write data (uninitialized) */
+  .bss BLOCK(4K) :
+  {
+    *(COMMON)
+    *(.bss)
+    . = ALIGN(4K);
+  }
+
+  _ker_fixed_end = .;
+  _ker_data_size = _ker_fixed_end - _ker_data_start;
+  _kernel_size = _ker_fixed_end - _kernel_start;
+  _kernel_free_mem_start = _ker_fixed_end;
+  
+
+  /* The compiler may produce other sections, put them in the proper place in
+     in this file, if you'd like to include them in the final kernel. */
+}
