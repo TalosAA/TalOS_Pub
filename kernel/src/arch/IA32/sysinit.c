@@ -95,7 +95,7 @@ errno_t ReadSystemConfig(void) {
   uint16_t i = 0;
   uint16_t k = 0;
   errno_t retCode = SYS_CONF_READ_ERROR;
-  RSDP_descr_t* rsdp = NULL;
+  RSDP_hdr_descr_t* rsdp = NULL;
 
   /**
    * Get CPU information
@@ -109,67 +109,69 @@ errno_t ReadSystemConfig(void) {
   /* Find RSDP pointer inside the BIOS memory area */
   rsdp = acpi_get_RSDP_ptr(BIOS_START_ADDR, BIOS_END_ADDR);
 
-  if (rsdp != NULL && acpi_get_MADT_info(rsdp, &MADT_Info) == TRUE) {
+  if (rsdp != NULL) {
+      if(acpi_get_MADT_info(rsdp, &MADT_Info) == TRUE) {
 
-    /* Populate MP Infos */
-    SysConf_Info.LAPIC_Ptr = (uint32_t*)MADT_Info.LAPIC_ptr;
+      /* Populate MP Infos */
+      SysConf_Info.LAPIC_Ptr = (uint32_t*)MADT_Info.LAPIC_ptr;
 
-    for(i = 0; (i < MADT_Info.LAPICs_Num && i < MAX_SUPP_PROC_NUM); i++) {
-      SysConf_Info.CPUs[i].CoreID = MADT_Info.LAPICs[i]->LAPIC_ProcId;
-      SysConf_Info.CPUs[i].LAPIC_Id = MADT_Info.LAPICs[i]->LAPIC_Id;
-    }
-    SysConf_Info.CPU_Num = i;
-
-    /* I/O APIC Info */
-    for(i = 0; (i < MADT_Info.IOAPIC_Num && i < MAX_SUPP_IOAPIC_NUM); i++) {
-      SysConf_Info.IOAPICs[i].IOAPIC_ID =\
-                                    MADT_Info.IOAPICs[i]->IOAPIC_ID;
-      SysConf_Info.IOAPICs[i].IOAPIC_Addr =\
-                                    MADT_Info.IOAPICs[i]->IOAPIC_Addr;
-      SysConf_Info.IOAPICs[i].GlobalSysInterBase =\
-                                    MADT_Info.IOAPICs[i]->GlobalSysInterBase;
-    }
-    SysConf_Info.IOAPIC_Num = i;
-
-    /* Initialize interrupts (Default configuration) */
-    for(i = 0; i < INT_NUM; i++){
-      SysConf_Info.InterruptSource[i].IntVector = HW_INT_START + i;
-      SysConf_Info.InterruptSource[i].GlobalSysInt = i;
-      SysConf_Info.InterruptSource[i].Polarity = 0;
-      SysConf_Info.InterruptSource[i].TriggerMode = 0;
-      SysConf_Info.InterruptSource[i].isNMI = 0;
-    }
-
-    /* Find interrupt source overrides */
-    for(i = 0; (i < MADT_Info.IntSrcOverride_Num && i < INT_NUM); i++) {
-
-      k = MADT_Info.IntSrcOverride[i]->IRQSource;
-      SysConf_Info.InterruptSource[k].IntVector = k + HW_INT_START;
-      SysConf_Info.InterruptSource[k].GlobalSysInt =\
-      MADT_Info.IntSrcOverride[i]->GlobalSysInt;
-      SysConf_Info.InterruptSource[k].TriggerMode =\
-      (MADT_Info.IntSrcOverride[i]->Flags >> 2);
-      SysConf_Info.InterruptSource[k].Polarity =\
-      (MADT_Info.IntSrcOverride[i]->Flags & 0x03);
-    }
-
-    /* Find NMI */
-    for(i = 0; (i < MADT_Info.NMI_Num && i < INT_NUM); i++) {
-      k = 0;
-      while(k < INT_NUM) {
-        if(MADT_Info.NMI_Source[i]->GlobalSysInt ==
-           SysConf_Info.InterruptSource[k].GlobalSysInt) {
-
-          SysConf_Info.InterruptSource[k].isNMI = INT_INFO_IS_NMI;
-          SysConf_Info.InterruptSource[k].TriggerMode =\
-                                      (MADT_Info.NMI_Source[i]->Flags >> 2);
-          SysConf_Info.InterruptSource[k].Polarity =\
-                                      (MADT_Info.NMI_Source[i]->Flags & 0x03);                                 
-          break;
-        }
-        k++;
+      for(i = 0; (i < MADT_Info.LAPICs_Num && i < MAX_SUPP_PROC_NUM); i++) {
+        SysConf_Info.CPUs[i].CoreID = MADT_Info.LAPICs[i]->ProcUID;
+        SysConf_Info.CPUs[i].LAPIC_Id = MADT_Info.LAPICs[i]->LAPIC_Id;
       }
-    }    
+      SysConf_Info.CPU_Num = i;
+
+      /* I/O APIC Info */
+      for(i = 0; (i < MADT_Info.IOAPIC_Num && i < MAX_SUPP_IOAPIC_NUM); i++) {
+        SysConf_Info.IOAPICs[i].IOAPIC_ID =\
+                                      MADT_Info.IOAPICs[i]->IOAPIC_ID;
+        SysConf_Info.IOAPICs[i].IOAPIC_Addr =\
+                                      MADT_Info.IOAPICs[i]->IOAPIC_Addr;
+        SysConf_Info.IOAPICs[i].GlobalSysInterBase =\
+                                      MADT_Info.IOAPICs[i]->GlobalSysInterBase;
+      }
+      SysConf_Info.IOAPIC_Num = i;
+
+      /* Initialize interrupts (Default configuration) */
+      for(i = 0; i < INT_NUM; i++){
+        SysConf_Info.InterruptSource[i].IntVector = HW_INT_START + i;
+        SysConf_Info.InterruptSource[i].GlobalSysInt = i;
+        SysConf_Info.InterruptSource[i].Polarity = 0;
+        SysConf_Info.InterruptSource[i].TriggerMode = 0;
+        SysConf_Info.InterruptSource[i].isNMI = 0;
+      }
+
+      /* Find interrupt source overrides */
+      for(i = 0; (i < MADT_Info.IntSrcOverride_Num && i < INT_NUM); i++) {
+
+        k = MADT_Info.IntSrcOverride[i]->IRQSource;
+        SysConf_Info.InterruptSource[k].IntVector = k + HW_INT_START;
+        SysConf_Info.InterruptSource[k].GlobalSysInt =\
+        MADT_Info.IntSrcOverride[i]->GlobalSysInt;
+        SysConf_Info.InterruptSource[k].TriggerMode =\
+        (MADT_Info.IntSrcOverride[i]->Flags >> 2);
+        SysConf_Info.InterruptSource[k].Polarity =\
+        (MADT_Info.IntSrcOverride[i]->Flags & 0x03);
+      }
+
+      /* Find NMI */
+      for(i = 0; (i < MADT_Info.NMI_Num && i < INT_NUM); i++) {
+        k = 0;
+        while(k < INT_NUM) {
+          if(MADT_Info.NMI_Source[i]->GlobalSysInt ==
+            SysConf_Info.InterruptSource[k].GlobalSysInt) {
+
+            SysConf_Info.InterruptSource[k].isNMI = INT_INFO_IS_NMI;
+            SysConf_Info.InterruptSource[k].TriggerMode =\
+                                        (MADT_Info.NMI_Source[i]->Flags >> 2);
+            SysConf_Info.InterruptSource[k].Polarity =\
+                                        (MADT_Info.NMI_Source[i]->Flags & 0x03);                                 
+            break;
+          }
+          k++;
+        }
+      }
+    }
     retCode = SYS_CONF_READ_OK;
   }
 
@@ -253,7 +255,7 @@ void InitAPs(void) {
         }
         CPU_State[i].stackTopAddress =(void*)\
         (((uintptr_t)CPU_State[i].stackTopAddress) + CORE_STACK_SIZE - 4);
-        
+
         StartupAP(i, AP_TRAM_START >> 12);
         CPU_State[i].StartedState = CPU_STATE_WAITING_START;
       }
@@ -277,8 +279,7 @@ void InitSys(void) {
 
   LAPIC_ptr = NULL;
 
-  if((SysConf_Info.CPU_Info.Features.dw1 &
-      CPUID_FEAT_DW1_APIC) == CPUID_FEAT_DW1_APIC &&
+  if((SysConf_Info.CPU_Info.Features.dw1 & CPUID_FEAT_DW1_APIC) == CPUID_FEAT_DW1_APIC &&
       SysConf_Info.ACPI_Init) {
 
     kermsg_info("APIC is available and will be used.\n");
