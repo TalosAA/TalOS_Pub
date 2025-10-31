@@ -118,7 +118,7 @@
 
 #define LAPIC_TIM_LVT_DISABLE   (0x10000)
 
-typedef struct {
+typedef struct __is_packed {
   uint32_t vector       : 8;
   uint32_t delvMode     : 3;
   uint32_t destMode     : 1;
@@ -130,7 +130,7 @@ typedef struct {
   uint32_t reserved1    : 15;
   uint32_t reserved2    : 24;
   uint32_t destination  : 8;
-} __is_packed ioapic_redirect_entry_t;
+} ioapic_redirect_entry_t;
 
 /* Utility Macros */
 #define IOAPIC_GET_VERSION(IOAPIC_VER_REG)\

@@ -120,7 +120,7 @@ typedef struct __is_packed {
 } MADT_var_record_t;
 
 /**
- * MADT Record: Processor LAPIC
+ * MADT Entry Type 0: Processor LAPIC
  */
 typedef struct __is_packed {
   uint8_t ProcUID;
@@ -129,7 +129,7 @@ typedef struct __is_packed {
 } MADT_Proc_LAPIC_t;
 
 /**
- * MADT Record: I/O APIC
+ * MADT Entry Type 1: I/O APIC
  */
 typedef struct __is_packed {
   uint8_t IOAPIC_ID;
@@ -139,7 +139,7 @@ typedef struct __is_packed {
 } MADT_IOAPIC_t;
 
 /**
- * MADT Record: I/O APIC Interrupt Source Override
+ * MADT Entry Type 2: I/O APIC Interrupt Source Override
  */
 typedef struct __is_packed {
   uint8_t BusSource;
@@ -149,7 +149,26 @@ typedef struct __is_packed {
 } MADT_IOAPIC_int_src_t;
 
 /**
- * MADT Record: LAPIC Address Override
+ * MADT Entry Type 3: I/O APIC NMI Source
+ */
+typedef struct __is_packed {
+  uint8_t Type;
+  uint8_t Length;
+  uint8_t Flags;
+  uint32_t GlobalSysInt;
+} MADT_IOAPIC_NMI_Src_t;
+
+/**
+ * MADT Entry Type 4: LAPIC NMI
+ */
+typedef struct __is_packed {
+  uint8_t ProcUID;
+  uint16_t Flags;
+  uint8_t LINTn; /* 0 or 1 */
+} MADT_LAPIC_NMI_t;
+
+/**
+ * MADT Entry Type 5: LAPIC Address Override
  */
 typedef struct __is_packed {
   uint16_t Reserved;
@@ -157,14 +176,14 @@ typedef struct __is_packed {
 } MADT_LAPIC_Addr_Over_t;
 
 /**
- * MADT Record: NMI Source
+ * MADT Entry Type 9: Processor Local x2APIC
  */
 typedef struct __is_packed {
-  uint8_t Type;
-  uint8_t Length;
-  uint8_t Flags;
-  uint32_t GlobalSysInt;
-} MADT_NMI_Src_t;
+  uint16_t Reserved;
+  uint32_t ProcessorLocX2APICID;
+  uint32_t Flags;
+  uint32_t ACPI_ID;
+} MADT_x2LAPIC_t;
 
 /**
  * GenericAddressStructure (used in FADT)
@@ -271,7 +290,7 @@ typedef struct {
   uint32_t LAPIC_ptr;
   MADT_IOAPIC_int_src_t* IntSrcOverride[MAX_INT_NUM];
   uint32_t IntSrcOverride_Num;
-  MADT_NMI_Src_t* NMI_Source[MAX_NMI_NUM];
+  MADT_IOAPIC_NMI_Src_t* NMI_Source[MAX_NMI_NUM];
   uint32_t NMI_Num;
   MADT_IOAPIC_t* IOAPICs[MAX_IOAPIC_NUM];
   uint32_t IOAPIC_Num;
@@ -283,7 +302,7 @@ bool acpi_tab_checksum(void* tab_addr,
 RSDP_hdr_descr_t* acpi_get_RSDP_ptr(const uint8_t* addrStart,
                                 const uint8_t* addrLimit);
 
-void *acpi_find_sdt_table(void *SDTStart, char *tableSignature);
+void *acpi_find_table(void *SDTStart, char *tableSignature);
 
 bool acpi_get_MADT_info(RSDP_hdr_descr_t* RSDP_ptr,
                         MADT_info_t* MADT_Info_out);
