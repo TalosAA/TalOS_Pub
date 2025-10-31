@@ -1,4 +1,4 @@
-#include <libk/kermsg.h>
+#include <libk/kerrmsg.h>
 #include <hal/platform.h>
 #include <coresys/kernel.h>
 #include <coresys/timer.h>

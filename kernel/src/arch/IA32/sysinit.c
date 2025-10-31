@@ -1,7 +1,7 @@
 #include <libk/stdint.h>
 #include <libk/string.h>
 #include <libk/stdio.h>
-#include <libk/kermsg.h>
+#include <libk/kerrmsg.h>
 #include <libk/kheap.h>
 #include <coresys/kernel.h>
 #include <IA32/init_defs.h>
@@ -22,6 +22,7 @@
 #include <hal/interrupts.h>
 #include <hal/mmap.h>
 #include <hal/init.h>
+#include <IA32/pci.h>
 
 
 /** 
@@ -110,7 +111,7 @@ errno_t ReadSystemConfig(void) {
   rsdp = acpi_get_RSDP_ptr(BIOS_START_ADDR, BIOS_END_ADDR);
 
   if (rsdp != NULL) {
-      if(acpi_get_MADT_info(rsdp, &MADT_Info) == TRUE) {
+    if(acpi_get_MADT_info(rsdp, &MADT_Info) == TRUE) {
 
       /* Populate MP Infos */
       SysConf_Info.LAPIC_Ptr = (uint32_t*)MADT_Info.LAPIC_ptr;
@@ -172,8 +173,10 @@ errno_t ReadSystemConfig(void) {
         }
       }
     }
-    retCode = SYS_CONF_READ_OK;
   }
+
+  /* TODO: error management */
+  retCode = SYS_CONF_READ_OK;
 
   return retCode;
 }
@@ -371,6 +374,9 @@ void InitSys(void) {
   CPU_State[BSP_INDEX].stackTopAddress = BSP_stack_top;
 
   InitAPs();
+
+  pci_scan();
+
 }
 
 /**

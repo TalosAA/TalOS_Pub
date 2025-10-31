@@ -49,19 +49,19 @@ typedef struct {
   uint8_t               ACPI_Init;
 } SysConf_Info_t;
 
-typedef struct {
+typedef struct __is_packed {
   uint32_t CoreID;
   uint32_t StartedState;
   void* stackTopAddress;
-} __is_packed Core_Status_t;
+} Core_Status_t;
 
-typedef struct {
+typedef struct __is_packed {
   gdt_entry_t gdt[GDT_SEG_NUM];
   tss_entry_t kernelTSS;
   sGdtr_t     sGdtr;
   idt_entry_t idt[INT_NUM];
   sIdtr_t     sIdtr;
-} __is_packed Core_Tables_t;
+} Core_Tables_t;
 
 errno_t ReadSystemConfig(void);
 void InitPaging(void);

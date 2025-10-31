@@ -28,14 +28,14 @@ RSDP_hdr_descr_t* acpi_get_RSDP_ptr(const uint8_t* addrStart,
   return rsdp_ptr;
 }
 
-void *acpi_find_sdt_table(void *SDTStart, char *tableSignature)
+void *acpi_find_table(void *SDTStart, char *tableSignature)
 {
   int i;
   int tabsNum = 0;
   bool isXSDT;
   acpi_header_t* retHdr = NULL;
   RSDT_descr_t* RSDT = (RSDT_descr_t*) SDTStart;
-  XSDT_descr_t* XSDT = (RSDT_descr_t*) SDTStart;
+  XSDT_descr_t* XSDT = (XSDT_descr_t*) SDTStart;
 
   if(!memcmp(XSDT->hdr.Signature, XSDT_LABEL, ACPI_SIGN_LEN)) {
     isXSDT = true;
@@ -65,7 +65,6 @@ bool acpi_get_MADT_info(RSDP_hdr_descr_t* RSDP_ptr, MADT_info_t* MADT_Info_out)
   uint8_t* ptr_end = NULL;
   acpi_header_t* MADT_header = NULL;
   MADT_var_record_t* var_rec = NULL;
-  uint32_t* MADT_addr = NULL;
   bool retValue = false;
 
   /* Clear output info */
@@ -73,66 +72,68 @@ bool acpi_get_MADT_info(RSDP_hdr_descr_t* RSDP_ptr, MADT_info_t* MADT_Info_out)
 
   if(RSDP_ptr != NULL && RSDP_ptr->RsdtAddress != 0) {
 
-    MADT_header = (acpi_header_t*)acpi_find_sdt_table(RSDP_ptr->RsdtAddress, MADT_LABEL);
+    MADT_header = (acpi_header_t*)acpi_find_table(RSDP_ptr->RsdtAddress, MADT_LABEL);
 
     if(MADT_header != NULL) {
-      /* Set LAPIC Address */
-      MADT_Info_out->LAPIC_ptr = ((MADT_LAPIC_header_t*)\
-                  ((uint32_t)MADT_header + sizeof(acpi_header_t)))->LAPICAddr;
+      /* Verify checksum of the MADT and parse the table */
+      if(acpi_tab_checksum(MADT_header, MADT_header->Length)){
+        /* Set LAPIC Address */
+        MADT_Info_out->LAPIC_ptr = ((MADT_LAPIC_header_t*)\
+                    ((uint32_t)MADT_header + sizeof(acpi_header_t)))->LAPICAddr;
 
-      /* Parse variable length fields */
-      ptr = (uint8_t*)((uint32_t)MADT_header +\
-                      sizeof(acpi_header_t) +\
-                      sizeof(MADT_LAPIC_header_t));
-      ptr_end = (uint8_t*)((uint32_t)MADT_header + MADT_header->Length);
-      
-      while(ptr < ptr_end) {
-        var_rec = (MADT_var_record_t*)ptr;
-        switch (var_rec->EntryType)
-        {
-          case MADT_ENT_LAPIC:
-            MADT_Info_out->LAPICs[MADT_Info_out->LAPICs_Num] = 
-                                  (MADT_Proc_LAPIC_t*)\
-                                  ((uint32_t)ptr + sizeof(MADT_var_record_t));
-            if(MADT_Info_out->LAPICs[MADT_Info_out->LAPICs_Num]->Flags & 
-              (MADT_PROC_ENABLED|MADT_ONLINE_CAPABLE)) {
-              MADT_Info_out->LAPICs_Num++;
-            }
-          break;
+        /* Parse variable length fields */
+        ptr = (uint8_t*)((uint32_t)MADT_header +\
+                        sizeof(acpi_header_t) +\
+                        sizeof(MADT_LAPIC_header_t));
+        ptr_end = (uint8_t*)((uint32_t)MADT_header + MADT_header->Length);
+        
+        while(ptr < ptr_end) {
+          var_rec = (MADT_var_record_t*)ptr;
+          switch (var_rec->EntryType)
+          {
+            case MADT_ENT_LAPIC:
+              MADT_Info_out->LAPICs[MADT_Info_out->LAPICs_Num] = 
+                                    (MADT_Proc_LAPIC_t*)\
+                                    ((uint32_t)ptr + sizeof(MADT_var_record_t));
+              if(MADT_Info_out->LAPICs[MADT_Info_out->LAPICs_Num]->Flags & 
+                (MADT_PROC_ENABLED|MADT_ONLINE_CAPABLE)) {
+                MADT_Info_out->LAPICs_Num++;
+              }
+            break;
 
-          case MADT_ENT_IOAPIC:
-            MADT_Info_out->IOAPICs[MADT_Info_out->IOAPIC_Num++] =\
-            (MADT_IOAPIC_t*)((uint32_t)ptr + sizeof(MADT_var_record_t));
-          break;
+            case MADT_ENT_IOAPIC:
+              MADT_Info_out->IOAPICs[MADT_Info_out->IOAPIC_Num++] =\
+              (MADT_IOAPIC_t*)((uint32_t)ptr + sizeof(MADT_var_record_t));
+            break;
 
-          case MADT_ENT_IOAPIC_INT_OVER:
-            MADT_Info_out->IntSrcOverride\
-            [MADT_Info_out->IntSrcOverride_Num++] = (MADT_IOAPIC_int_src_t*)\
-            ((uint32_t)ptr + sizeof(MADT_var_record_t));
-          break;
+            case MADT_ENT_IOAPIC_INT_OVER:
+              MADT_Info_out->IntSrcOverride\
+              [MADT_Info_out->IntSrcOverride_Num++] = (MADT_IOAPIC_int_src_t*)\
+              ((uint32_t)ptr + sizeof(MADT_var_record_t));
+            break;
 
-          case MADT_ENT_LAPIC_ADDR_OVER:
-            /* Override of the previously obtained pointer */
-            MADT_Info_out->LAPIC_ptr = ((MADT_LAPIC_Addr_Over_t*)\
-            ((uint32_t)ptr + sizeof(MADT_var_record_t)))->LAPIC_Addr;
-          break;
+            case MADT_ENT_LAPIC_ADDR_OVER:
+              /* Override of the previously obtained pointer */
+              MADT_Info_out->LAPIC_ptr = ((MADT_LAPIC_Addr_Over_t*)\
+              ((uint32_t)ptr + sizeof(MADT_var_record_t)))->LAPIC_Addr;
+            break;
 
-          case MADT_ENT_LAPIC_NMI_SRC:
-            MADT_Info_out->NMI_Source[MADT_Info_out->NMI_Num++] =\
-            (MADT_NMI_Src_t*)\
-            ((uint32_t)ptr + sizeof(MADT_NMI_Src_t));
-          break;
-          
-          default:
-            /**
-             *  TODO: to parse other entries if it is required
-             * */
-          break;
+            case MADT_ENT_LAPIC_NMI_SRC:
+              MADT_Info_out->NMI_Source[MADT_Info_out->NMI_Num++] =\
+              (MADT_IOAPIC_NMI_Src_t*)\
+              ((uint32_t)ptr + sizeof(MADT_IOAPIC_NMI_Src_t));
+            break;
+            
+            default:
+              /**
+               *  TODO: to parse other entries if it is required
+               * */
+            break;
+          }
+          ptr += var_rec->Length;
         }
-        ptr += var_rec->Length;
+        retValue = true;
       }
-
-      retValue = true;
     }
   }
   
