@@ -4,18 +4,20 @@ SYSTEM_HEADER_PROJECTS="kernel"
 PROJECTS="kernel"
 BUILD_MODE=$1
 
-if [ "$1" == "DEBUG" ]
+if [ -n "$1" ]
 then
-  export BUILD_MODE="DEBUG"
-  export CFLAGS='-O0 -g'
-elif [ "$1" = "RELEASE" ]
-then
-  export BUILD_MODE="RELEASE"
-  export CFLAGS=
+  if [ "$1" = "RELEASE" ]
+  then
+    export BUILD_MODE="RELEASE"
+    export CFLAGS=
+  else
+    export BUILD_MODE="DEBUG"
+    export CFLAGS='-O0 -g'
+    BUILD_MODE=DEBUG
+  fi
 else
   export BUILD_MODE="DEBUG"
   export CFLAGS='-O0 -g'
-  BUILD_MODE=DEBUG
 fi
 
 echo Build in $BUILD_MODE mode.

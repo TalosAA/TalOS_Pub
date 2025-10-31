@@ -6,7 +6,15 @@ mkdir -p isodir
 mkdir -p isodir/boot
 mkdir -p isodir/boot/grub
 
-if [ $1 = "RELEASE" ]
+BUILD_TYPE=
+
+if [ -z "$1" ]; then
+	BUILD_TYPE="DEBUG"
+else
+	BUILD_TYPE="$1"
+fi
+
+if [ "$BUILD_TYPE" = "RELEASE" ]
 then
 	cp kernel/RELEASE/boot/TalOS.kernel isodir/boot/TalOS.kernel
 else
