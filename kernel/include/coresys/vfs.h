@@ -63,7 +63,7 @@ typedef struct dirent {
 
 void fs_set_root(struct fs_node* root_node);
 struct fs_node* fs_get_root(void);
-struct fs_node* fs_get_node(struct fs_node* current, char * path);
+struct fs_node* fs_get_node(struct fs_node* current, const char * path);
 void fs_get_simlink(const char* simlinkName, struct fs_node* inNode,
                     struct fs_node* simlink);
 ssize_t fs_read(struct fs_node* node, void* buf, size_t nbyte, off_t offset);

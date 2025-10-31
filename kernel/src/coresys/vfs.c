@@ -8,7 +8,7 @@ void fs_set_root(struct fs_node* root_node) { root = root_node; }
 
 struct fs_node* fs_get_root(void) { return root; }
 
-struct fs_node* fs_get_node(struct fs_node* current, char* path) {
+struct fs_node* fs_get_node(struct fs_node* current, const char* path) {
   char intPath[MAX_PATH];
   fs_node_t* currNode = NULL;
   char* tokenContext = NULL;
