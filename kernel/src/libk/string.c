@@ -2,10 +2,12 @@
 #include <string.h>
 
 char *strncpy(char *dest, const char *src, size_t n) {
-  size_t i;
+  size_t i = 0;
 
-  for (i = 0; i < n && src[i] != '\0'; i++) dest[i] = src[i];
-  for (; i < n; i++) dest[i] = '\0';
+  for (i = 0; i < n && src[i] != '\0'; i++) 
+    dest[i] = src[i];
+  if(i < n)
+    dest[i] = '\0';
 
   return dest;
 }
@@ -69,4 +71,20 @@ char *strtok_r(char* str, const char* delim, char** saveptr) {
   }
 
   return token;
+}
+
+char *strcat(char *dest, const char *src){
+  return strncat(dest, src, SIZE_MAX);
+}
+
+char* strncat(char *dest, const char *src, size_t n)
+{
+  size_t dest_len = strlen(dest);
+  size_t i;
+
+  for (i = 0; i < n && src[i] != '\0'; i++)
+      dest[dest_len + i] = src[i];
+  dest[dest_len + i] = '\0';
+
+  return dest;
 }

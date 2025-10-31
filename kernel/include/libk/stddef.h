@@ -34,6 +34,6 @@ typedef int errno_t;
 #define __is_unused __attribute__((unused))
 
 /* Packed attribute */
-#define __is_packed __attribute__ ((packed))
+#define __is_packed __attribute__ ((packed, aligned(1)))
 
 #endif

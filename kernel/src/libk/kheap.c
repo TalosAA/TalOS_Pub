@@ -1,8 +1,13 @@
 #include <libk/stddef.h>
 #include <libk/stdint.h>
 #include <libk/kheap.h>
+#include <libk/string.h>
 
-//TODO: questo modulo è solo un semplice stub ed è completamente da rivedere
+//TODO: this module is only a stub, please ignore it :D
+
+// Next is used to prevent the realloc stub to read
+// an unpaginated memory :S :S :S
+#define KHEAP_MAGIC_VAL       ((size_t)"NEXT")
 
 static void* HeapMem = NULL;
 static size_t HeapMemSize = 0;
@@ -23,7 +28,39 @@ void *kmalloc(size_t size) {
     returnAddr = CurrentPointer;
     CurrentPointer = (void*)nextAddrInt;
   }
+  *((size_t*)nextAddrInt) = KHEAP_MAGIC_VAL;
+  nextAddrInt += sizeof(size_t);
   return returnAddr;
+}
+
+void *kcalloc(size_t nmemb, size_t size) {
+  return kmalloc(nmemb * size);
+}
+
+void *krealloc(void *ptr, size_t size) {
+  void* newPtr = NULL;
+  size_t count = size;
+  void* ptrCount = ptr;
+  size_t oldSize = 0;
+
+  //find magic val
+  while(count != 0 && *((size_t*)ptrCount) != KHEAP_MAGIC_VAL) {
+    count--;
+    oldSize++;
+    ptrCount++;
+  }
+  oldSize--;
+
+  if(oldSize > size) {
+    oldSize = size;
+  }
+
+  if(size > 0) {
+    newPtr = kmalloc(size);
+    memcpy(newPtr, ptr, oldSize);
+  }
+  kfree(ptr);
+  return newPtr;
 }
 
 void kfree(void *ptr) {

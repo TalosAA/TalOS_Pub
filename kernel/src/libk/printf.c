@@ -21,10 +21,29 @@ static void* copy_to_stdout(void* restrict dest, const void* restrict src, size_
 
 static int print_number(char* buff_out, copy_fun_t* cpy_fun,
                         char* str_num, ssize_t precision,
-                        ssize_t width, size_t max_write,
-                        size_t* written, size_t maxrem) {
+                        ssize_t width, ssize_t zero_pad,
+                        size_t max_write, size_t* written, 
+                        size_t maxrem) {
   int exit = 0;
   size_t len = strlen(str_num);
+
+  /* print zero pad */
+  if(len >= width) {
+    zero_pad = 0;
+  }
+  while(zero_pad > 0){
+    char zero = '0';
+    if(((*written) + 2) > max_write){
+      /* exit */
+      return 1;
+    }
+    if(cpy_fun(buff_out + *written, (void*) &zero, 1) != (buff_out + *written)){
+      return -1;
+    }
+    (*written)++;
+    zero_pad--;
+    width--;
+  }
 
   /* Manage width */
   if(precision > 0){
@@ -106,6 +125,7 @@ static int gen_printf(char* buff_out, copy_fun_t* cpy_fun, size_t n, const char 
   const char* format_begun_at = 0;
   ssize_t width = 0;
   ssize_t precision = 0;
+  ssize_t zero_pad = 0;
 
   while ((*format != '\0') && !exit) {
     size_t maxrem = UINT_MAX - written;
@@ -139,12 +159,19 @@ static int gen_printf(char* buff_out, copy_fun_t* cpy_fun, size_t n, const char 
 
     width = 0;
     precision = 0;
+    zero_pad = 0;
     if(*format >= 0x30 && *format <= 0x39){
+      /* count zeros */
+      while (*format == 0x30 && *format != '\0'){ 
+        zero_pad++;
+        format++;
+      }
+
       /* width field */
       width = atoi(format);
       while (*format >= 0x30 && *format <= 0x39)
         format++;
-    } 
+    }
     if(*format == '.'){
       /* precision field */
       format++;
@@ -168,7 +195,7 @@ static int gen_printf(char* buff_out, copy_fun_t* cpy_fun, size_t n, const char 
 
         if(cpy_fun(buff_out + written, &c, sizeof(c)) != (buff_out + written)){
           return -1;
-        }        
+        }
 
         written++;
       }
@@ -209,7 +236,7 @@ static int gen_printf(char* buff_out, copy_fun_t* cpy_fun, size_t n, const char 
 
       if(cpy_fun(buff_out + written, (void*) str, len) != (buff_out + written)){
         return -1;
-      }        
+      }
 
       written += len;
     } else if ((*format == 'l' && *(format + sizeof(char)) != 'l')) {
@@ -226,12 +253,12 @@ static int gen_printf(char* buff_out, copy_fun_t* cpy_fun, size_t n, const char 
       } else if(*format == 'x' || *format == 'X') {
         unsigned long num = va_arg(parameters, unsigned long);
         ulitoa(num, str_num, 16);
-      } 
+      }
 
       format++;
 
       exit = print_number(buff_out, cpy_fun, str_num, precision, width, \
-                          n, &written, maxrem);
+                          zero_pad, n, &written, maxrem);
       if(exit < 0){
         return exit;
       }
@@ -255,7 +282,7 @@ static int gen_printf(char* buff_out, copy_fun_t* cpy_fun, size_t n, const char 
       format++;
 
       exit = print_number(buff_out, cpy_fun, str_num, precision, width, \
-                          n, &written, maxrem);
+                          zero_pad, n, &written, maxrem);
       if(exit < 0){
         return exit;
       }
@@ -280,7 +307,7 @@ static int gen_printf(char* buff_out, copy_fun_t* cpy_fun, size_t n, const char 
       format++;
 
       exit = print_number(buff_out, cpy_fun, str_num, precision, width, \
-                          n, &written, maxrem);
+                          zero_pad, n, &written, maxrem);
       if(exit < 0){
         return exit;
       }
