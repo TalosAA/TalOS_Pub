@@ -1,6 +1,18 @@
 #include <coresys/vfs.h>
 #include <libk/string.h>
 
+/**
+ * File names forbiden chars & names
+ */
+const char vfs_forbiden_chars[] = "/";
+const char *vfs_forbiden_names[] = {
+  ".",
+  ".."
+};
+
+#define VFS_FORB_CH_NUM (sizeof(vfs_forbiden_chars) - 1)
+#define VFS_FORB_NA_NUM (sizeof(vfs_forbiden_names)/sizeof(vfs_forbiden_names[0]))
+
 static ino_t last_ino = 0;
 static fs_node_t* root = NULL;
 
@@ -106,7 +118,7 @@ int fs_readdir(struct fs_node* dir_node, uint32_t index, struct dirent* entry,
   return RET_T_NOK;
 }
 
-struct fs_node* fs_find(struct fs_node* dir_node, char* name) {
+struct fs_node* fs_find(struct fs_node* dir_node, const char* name) {
   dir_node = get_node_from_simlink(dir_node);
   if (dir_node->find != NULL) {
     return dir_node->find(dir_node, name);
@@ -118,4 +130,90 @@ ino_t fs_new_ino_id(void) {
   //TODO manage critical section
   last_ino++;
   return (last_ino - 1);
+}
+
+/**
+ * Path manipulation utility functions
+ */
+
+#define fs_remove_last_slash(path, pathLen) {\
+  if(path[pathLen - 1] == '/') {\
+    intPath[pathLen - 1] = '\0';\
+    pathLen--;\
+  }\
+}
+
+char * fs_getFileName(const char* filePath) {
+  char intPath[MAX_FNAME];
+  char * currTokenNode = NULL;
+  char * prevTokenNode = NULL;
+  char * tokenContext = NULL;
+  size_t intPathLen = 0;
+
+  strncpy(intPath, filePath, MAX_FNAME);
+  intPathLen = strnlen(intPath, MAX_FNAME);
+
+  /* remove the last "/" */
+  fs_remove_last_slash(intPath, intPathLen);
+
+  currTokenNode = strtok_r(intPath, "/", &tokenContext);
+  if (currTokenNode != NULL) {
+    do {
+      prevTokenNode = currTokenNode;
+    } while((currTokenNode = strtok_r(NULL, "/", &tokenContext)) != NULL);
+  }
+  return prevTokenNode;
+}
+
+int fs_getParentPath(const char* filePath, char* parentPath){
+  char intPath[MAX_FNAME];
+  size_t intPathLen = 0;
+  char* fileName;
+  size_t fileNameLen = 0;
+  
+  strncpy(intPath, filePath, MAX_FNAME);
+  intPathLen = strnlen(intPath, MAX_FNAME);
+
+  /* remove the last "/" */
+  fs_remove_last_slash(intPath, intPathLen);
+
+  fileName = fs_getFileName(filePath);
+  if(fileName == NULL) {
+    return RET_T_NOK;
+  }
+
+  fileNameLen = strnlen(fileName, MAX_FNAME);
+  intPathLen = intPathLen - fileNameLen;
+  memcpy(parentPath, intPath, intPathLen);
+  if(intPathLen != 1){
+    /* not root */
+    fs_remove_last_slash(parentPath, intPathLen);
+  }
+  parentPath[intPathLen] = '\0';
+  return RET_T_OK;
+}
+
+int fs_checkFileName(const char* fileName, char** errChar) {
+  size_t i, k;
+  size_t fileNameLen;
+
+  for(i = 0; i < VFS_FORB_NA_NUM; i++) {
+    if(strncmp(fileName, vfs_forbiden_names[i], MAX_FNAME) == 0) {
+      return RET_T_NOK;
+    }
+  }
+
+  fileNameLen = strnlen(fileName, MAX_FNAME);
+
+  for(i = 0; i < VFS_FORB_CH_NUM; i++) {
+    for(k = 0; k < fileNameLen; k++)
+      if(fileName[k] == vfs_forbiden_chars[i]) {
+        if(errChar != NULL) {
+          *errChar = &fileName[k];
+        }
+        return RET_T_NOK;
+      }
+  }
+
+  return RET_T_OK;
 }

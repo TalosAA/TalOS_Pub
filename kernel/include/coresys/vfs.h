@@ -8,9 +8,6 @@
 #define MAX_FNAME (128)
 #define MAX_PATH  (255)
 
-typedef size_t off_t;
-
-typedef uint32_t fs_type_t;
 #define FTYPE_REGULAR     (0x00000001)
 #define FTYPE_DIRECTORY   (0x00000002)
 #define FTYPE_BLOCKDEV    (0x00000004)
@@ -18,8 +15,10 @@ typedef uint32_t fs_type_t;
 #define FTYPE_FIFO        (0x00000010)
 #define FTYPE_SYMLINK     (0x00000020)
 #define FTYPE_SOCK        (0x00000040)
-typedef uint32_t ino_t;
 
+typedef uint32_t ino_t;
+typedef uint32_t fs_type_t;
+typedef size_t off_t;
 struct fs_node;
 struct dirent;
 
@@ -34,7 +33,7 @@ typedef int (*fs_readdir_fun_t)(struct fs_node* dir_node,
                                 struct dirent *entry,
                                 struct dirent **result);
 typedef struct fs_node* (*fs_find_fun_t)(struct fs_node* dir_node,
-                                         char* name);
+                                         const char* name);
 
 typedef struct fs_node {
   char name[MAX_FNAME];     /* Filename */
@@ -75,9 +74,14 @@ int fs_readdir(struct fs_node* dir_node,
                uint32_t index,
                struct dirent *entry,
                struct dirent **result);
-struct fs_node* fs_find(struct fs_node* dir_node,
-                           char* name);
+struct fs_node* fs_find(struct fs_node* dir_node, const char* name);
 
 ino_t fs_new_ino_id(void);
+
+char * fs_getFileName(const char* filePath);
+
+int fs_getParentPath(const char* filePath, char* parentPath);
+
+int fs_checkFileName(const char* fileName, char** errChar);
 
 #endif

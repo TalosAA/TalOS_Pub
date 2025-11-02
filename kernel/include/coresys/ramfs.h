@@ -33,7 +33,7 @@ int ramfs_readdir(struct fs_node* dir_node,
                     struct dirent *entry,
                     struct dirent **result);
 
-struct fs_node* ramfs_find(struct fs_node* dir_node, char* name);
+struct fs_node* ramfs_find(struct fs_node* dir_node, const char* name);
 
 fs_node_t* ramfs_mkDir(const char* dirName, const char* parentDirAbsPath, int *err);
 

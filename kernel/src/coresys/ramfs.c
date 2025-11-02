@@ -41,7 +41,6 @@ static inline ramfs_file_header_t* ramfs_allocNode(void) {
 }
 
 static inline void ramfs_deallocNode(ramfs_file_header_t* node) {
-  printf("deallocate %s\n",node->fs_node.name);
   kfree(node->filePtr);
   kfree(node);
 }
@@ -87,15 +86,16 @@ int ramfs_init(void) {
 
   fs_set_root(&root.fs_node);
 
-  return RET_T_OK;
+  return RFS_OK;
 
   CLEENUP_LABEL(free_curr_dir_simlink, free_mem, currentDirSimlink);
   CLEENUP_DEFAULT_LABEL();
 
-  return RET_T_NOK;
+  return RFS_NOK;
 }
 
 static int ramfs_inter_deleteNode(ramfs_file_header_t* node) {
+  int ret = RFS_NOK;
   if(node->children != NULL) {
     if(ramfs_inter_deleteNode(node->children) != RFS_OK) {
       return RFS_NOK;
@@ -106,15 +106,51 @@ static int ramfs_inter_deleteNode(ramfs_file_header_t* node) {
       return RFS_NOK;
     }
   }
+
   ramfs_deallocNode(node);
+  return RFS_OK;
 }
 
 int ramfs_deleteNode(const char* nodeAbsPath) {
-  ramfs_file_header_t* node;
+  ramfs_file_header_t* node = NULL;
+  ramfs_file_header_t* parent = NULL;
+  char parentPath[MAX_FNAME];
+  char* tokenContext = NULL;
+  char* prevTokenContext = NULL;
+
+  if(fs_getParentPath(nodeAbsPath, parentPath) != RET_T_OK){
+    return RFS_NOK;
+  }
+
+  parent = fs_get_node(NULL, parentPath);
+  if(parent == NULL) {
+    return RFS_NOK;
+  }
+
   node = fs_get_node(NULL, nodeAbsPath);
   if(node == NULL) {
     return RFS_NOK;
   }
+
+  /* find node within the children of parent and remove it */
+  if(parent->children == node) {
+    parent->children = node->next;
+  } else {
+    ramfs_file_header_t* prev = parent->children;
+    ramfs_file_header_t* curr = prev->next;
+    while(curr != NULL) {
+      if(curr == node) {
+        prev->next = node->next;
+        break;
+      }
+      prev = curr;
+      curr = curr->next;
+    }
+    if(curr == NULL) {
+      return RFS_NOK;
+    }
+  }
+
   return ramfs_inter_deleteNode(node);
 }
 
@@ -127,6 +163,10 @@ fs_node_t* ramfs_mkDir(const char* dirName, const char* parentDirAbsPath, int *e
 
   if(err != NULL) {
     *err = RFS_NOK;
+  }
+
+  if(fs_checkFileName(dirName, NULL) != RET_T_OK) {
+    CLEENUP(default);
   }
 
   parentDir = (ramfs_file_header_t*)fs_get_node(NULL, parentDirAbsPath);
@@ -210,6 +250,10 @@ fs_node_t* ramfs_newRegFile(const char* fileName, const char* parentDirAbsPath, 
     *err = RFS_NOK;
   }
 
+  if(fs_checkFileName(fileName, NULL) != RET_T_OK) {
+    CLEENUP(default);
+  }
+
   parentDir = (ramfs_file_header_t*)fs_get_node(NULL, parentDirAbsPath);
   if(parentDir == NULL){
     CLEENUP(default);
@@ -266,7 +310,7 @@ int ramfs_loadInitrd(const uint8_t* initrdPtr, char* path) {
   ramfs_file_header_t* parent_dir;
 
   if (UINT32_INITRD_ORDER(initrdHeader->magic) != INITRD_MAGIC) {
-    return RET_T_NOK;
+    return RFS_NOK;
   }
 
   /* Used to optimize stack */
@@ -274,7 +318,7 @@ int ramfs_loadInitrd(const uint8_t* initrdPtr, char* path) {
 
   curr_dir = (ramfs_file_header_t*) fs_get_node(NULL, path);
   if(curr_dir == NULL || curr_dir->fs_node.type != FTYPE_DIRECTORY) {
-    return RET_T_NOK;
+    return RFS_NOK;
   }
 
   /* The second children is the simlink to the parent dir */
@@ -331,23 +375,23 @@ ssize_t ramfs_write(struct fs_node* node, const void* buf, size_t nbyte,
   CLEENUP_LABEL(newFilePtr, free_mem, newFilePtr);
   CLEENUP_DEFAULT_LABEL();
 
-  return RET_T_NOK;
+  return RFS_NOK;
 }
 
 int ramfs_open(struct fs_node* node, const char* restrict __is_unused mode) {
   // TODO
-  return RET_T_OK;
+  return RFS_OK;
 }
 
 int ramfs_close(struct fs_node* __is_unused node) {
   // TODO
-  return RET_T_OK;
+  return RFS_OK;
 }
 
 int ramfs_readdir(struct fs_node* dir_node, uint32_t index,
                     struct dirent* entry, struct dirent** result) {
   ramfs_file_header_t* ramfsNode = (ramfs_file_header_t*)dir_node;
-  int ret = RET_T_NOK;
+  int ret = RFS_NOK;
   uint32_t i = 0;
 
   *result = NULL;
@@ -355,11 +399,11 @@ int ramfs_readdir(struct fs_node* dir_node, uint32_t index,
   if (dir_node == NULL || dir_node->readdir == NULL ||
       dir_node->type != FTYPE_DIRECTORY) {
     // TODO errno
-    return RET_T_NOK;
+    return RFS_NOK;
   }
   if (ramfsNode->children == NULL) {
     *result = NULL;
-    ret = RET_T_OK;
+    ret = RFS_OK;
   } else {
     ramfsNode = ramfsNode->children;
     i = 0;
@@ -376,12 +420,12 @@ int ramfs_readdir(struct fs_node* dir_node, uint32_t index,
       entry->d_reclen = sizeof(dirent_t) - MAX_FNAME + strlen(entry->d_name);
       *result = entry;
     }
-    ret = RET_T_OK;
+    ret = RFS_OK;
   }
   return ret;
 }
 
-struct fs_node* ramfs_find(struct fs_node* dir_node, char* name) {
+struct fs_node* ramfs_find(struct fs_node* dir_node, const char* name) {
   ramfs_file_header_t* ramfsNode = (ramfs_file_header_t*)dir_node;
   fs_node_t* retNode = NULL;
 
@@ -406,7 +450,7 @@ struct fs_node* ramfs_find(struct fs_node* dir_node, char* name) {
 }
 
 int ramfs_add_child(struct fs_node* dirNode, struct fs_node* copyChild) {
-  int ret = RET_T_NOK;
+  int ret = RFS_NOK;
   ramfs_file_header_t* parent = (ramfs_file_header_t*)dirNode;
 
   if (dirNode != NULL && dirNode->type == FTYPE_DIRECTORY) {
@@ -421,7 +465,7 @@ int ramfs_add_child(struct fs_node* dirNode, struct fs_node* copyChild) {
       } else {
         (get_last_child(parent))->next = ramfs_child;
       }
-      ret = RET_T_OK;
+      ret = RFS_OK;
     }
   }
   return ret;
@@ -534,8 +578,8 @@ static int LoadInitrdFiles(ramfs_file_header_t* parent,
     } else if (initrdchildren[i].type ==
                UINT32_INITRD_ORDER(INITRD_FTYPE_DIR)) {
       curr = LoadInitrdDirFile(&initrdchildren[i]);
-      if(LoadInitrdFiles(currentDir, curr, &initrdchildren[i]) != RET_T_OK) {
-        return RET_T_NOK;
+      if(LoadInitrdFiles(currentDir, curr, &initrdchildren[i]) != RFS_OK) {
+        return RFS_NOK;
       }
     } else {
       /* jump to the next cycle */
@@ -549,10 +593,10 @@ static int LoadInitrdFiles(ramfs_file_header_t* parent,
     prev = curr;
   }
 
-  return RET_T_OK;
+  return RFS_OK;
 
   CLEENUP_LABEL(free_cur_dir_simlink, free_mem, currentDir);
   CLEENUP_DEFAULT_LABEL();
 
-  return RET_T_NOK;
+  return RFS_NOK;
 }
