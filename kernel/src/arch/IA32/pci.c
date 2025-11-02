@@ -130,7 +130,7 @@ int pci_scan(void) {
     if(ramfs_deleteNode("/sys/device/pci") != RFS_OK){
       return RET_T_NOK;
     }
-    if(ramfs_mkDir("pci", "/sys/device", NULL) != RFS_OK){
+    if(ramfs_mkDir("pci", "/sys/device", NULL) == NULL){
       return RET_T_NOK;
     }
   }
