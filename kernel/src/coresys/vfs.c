@@ -32,6 +32,9 @@ struct fs_node* fs_get_node(struct fs_node* current, const char* path) {
     /* relative to root */
     currNode = root;
   } else {
+    if(current == NULL) {
+      return NULL;
+    }
     /* relative to current node */
     currNode = current;
   }
@@ -67,7 +70,7 @@ void fs_get_simlink(const char* simlinkName, struct fs_node* inNode,
   simlink->impl_def = 0;
 }
 
-static inline struct fs_node* get_node_from_simlink(struct fs_node* node) {
+static inline struct fs_node* vfs_nodeFromSimlink(struct fs_node* node) {
   while(node->type == FTYPE_SYMLINK) {
     node = node->node_ptr;
   }
@@ -76,50 +79,52 @@ static inline struct fs_node* get_node_from_simlink(struct fs_node* node) {
 
 
 ssize_t fs_read(struct fs_node* node, void* buf, size_t nbyte, off_t offset) {
-  node = get_node_from_simlink(node);
+  node = vfs_nodeFromSimlink(node);
   if (node->read != NULL) {
     return node->read(node, buf, nbyte, offset);
   } else {
-    return RET_T_NOK;
+    return VFS_T_NOK;
   }
 }
 
 ssize_t fs_write(struct fs_node* node, const void* buf, size_t nbyte,
                  off_t offset) {
-  node = get_node_from_simlink(node);
+  node = vfs_nodeFromSimlink(node);
   if (node->write != NULL) {
     return node->write(node, buf, nbyte, offset);
   }
-  return RET_T_NOK;
+  return VFS_T_NOK;
 }
 
 int fs_open(struct fs_node* node, const char* restrict mode) {
-  node = get_node_from_simlink(node);
+  node = vfs_nodeFromSimlink(node);
+  //TODO: file open context allocation management
   if (node->open != NULL) {
     return node->open(node, mode);
   }
-  return RET_T_NOK;
+  return VFS_T_NOK;
 }
 
 int fs_close(struct fs_node* node) {
-  node = get_node_from_simlink(node);
+  node = vfs_nodeFromSimlink(node);
+  //TODO: file open context allocation management
   if (node->close != NULL) {
     return node->close(node);
   }
-  return RET_T_NOK;
+  return VFS_T_NOK;
 }
 
 int fs_readdir(struct fs_node* dir_node, uint32_t index, struct dirent* entry,
                struct dirent** result) {
-  dir_node = get_node_from_simlink(dir_node);
+  dir_node = vfs_nodeFromSimlink(dir_node);
   if (dir_node->readdir != NULL) {
     return dir_node->readdir(dir_node, index, entry, result);
   }
-  return RET_T_NOK;
+  return VFS_T_NOK;
 }
 
 struct fs_node* fs_find(struct fs_node* dir_node, const char* name) {
-  dir_node = get_node_from_simlink(dir_node);
+  dir_node = vfs_nodeFromSimlink(dir_node);
   if (dir_node->find != NULL) {
     return dir_node->find(dir_node, name);
   }
@@ -135,12 +140,12 @@ ino_t fs_new_ino_id(void) {
 /**
  * Path manipulation utility functions
  */
-
-#define fs_remove_last_slash(path, pathLen) {\
-  if(path[pathLen - 1] == '/') {\
-    intPath[pathLen - 1] = '\0';\
-    pathLen--;\
-  }\
+static inline void fs_remove_last_slash(char * path, size_t* pathLen)
+{
+  if(path[*pathLen - 1] == '/') {
+    path[*pathLen - 1] = '\0';
+    (*pathLen)--;
+  }
 }
 
 char * fs_getFileName(const char* filePath) {
@@ -154,7 +159,7 @@ char * fs_getFileName(const char* filePath) {
   intPathLen = strnlen(intPath, MAX_FNAME);
 
   /* remove the last "/" */
-  fs_remove_last_slash(intPath, intPathLen);
+  fs_remove_last_slash(intPath, &intPathLen);
 
   currTokenNode = strtok_r(intPath, "/", &tokenContext);
   if (currTokenNode != NULL) {
@@ -175,11 +180,11 @@ int fs_getParentPath(const char* filePath, char* parentPath){
   intPathLen = strnlen(intPath, MAX_FNAME);
 
   /* remove the last "/" */
-  fs_remove_last_slash(intPath, intPathLen);
+  fs_remove_last_slash(intPath, &intPathLen);
 
   fileName = fs_getFileName(filePath);
   if(fileName == NULL) {
-    return RET_T_NOK;
+    return VFS_T_NOK;
   }
 
   fileNameLen = strnlen(fileName, MAX_FNAME);
@@ -187,33 +192,39 @@ int fs_getParentPath(const char* filePath, char* parentPath){
   memcpy(parentPath, intPath, intPathLen);
   if(intPathLen != 1){
     /* not root */
-    fs_remove_last_slash(parentPath, intPathLen);
+    fs_remove_last_slash(parentPath, &intPathLen);
   }
   parentPath[intPathLen] = '\0';
-  return RET_T_OK;
+  return VFS_T_OK;
 }
 
 int fs_checkFileName(const char* fileName, char** errChar) {
   size_t i, k;
   size_t fileNameLen;
 
+  if(errChar != NULL) {
+    *errChar = NULL;
+  }
+
+  /* check if the name is permitted */
   for(i = 0; i < VFS_FORB_NA_NUM; i++) {
     if(strncmp(fileName, vfs_forbiden_names[i], MAX_FNAME) == 0) {
-      return RET_T_NOK;
+      return VFS_T_NOK;
     }
   }
 
+  /* check if all the chars are paermitted */
   fileNameLen = strnlen(fileName, MAX_FNAME);
-
   for(i = 0; i < VFS_FORB_CH_NUM; i++) {
     for(k = 0; k < fileNameLen; k++)
       if(fileName[k] == vfs_forbiden_chars[i]) {
         if(errChar != NULL) {
-          *errChar = &fileName[k];
+          /* set the address of the forbiden char */
+          *errChar = (char*)&fileName[k];
         }
-        return RET_T_NOK;
+        return VFS_T_NOK;
       }
   }
 
-  return RET_T_OK;
+  return VFS_T_OK;
 }

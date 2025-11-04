@@ -4,13 +4,6 @@
 #include <libk/string.h>
 #include <libk/kcleenup.h>
 
-typedef struct ramfs_file_header {
-  fs_node_t fs_node;
-  void* filePtr;
-  struct ramfs_file_header* next;     /* same level nodes */
-  struct ramfs_file_header* children; /* children nodes */
-} ramfs_file_header_t;
-
 static ramfs_file_header_t root;
 
 static void* initrd_base = NULL;
@@ -20,15 +13,6 @@ static ramfs_file_header_t* LoadInitrdDirFile(initrd_file_header* initrdFile);
 static int LoadInitrdFiles(ramfs_file_header_t* parent,
                            ramfs_file_header_t* currentDir,
                            initrd_file_header* initrdcurrentDir);
-
-static inline ramfs_file_header_t* get_last_child(
-    ramfs_file_header_t* parent) {
-  ramfs_file_header_t* currChild = (ramfs_file_header_t*)parent->children;
-  while (currChild->next != NULL) {
-    currChild = currChild->next;
-  }
-  return currChild;
-}
 
 static inline ramfs_file_header_t* ramfs_allocNode(void) {
   ramfs_file_header_t* newNode;
@@ -43,6 +27,18 @@ static inline ramfs_file_header_t* ramfs_allocNode(void) {
 static inline void ramfs_deallocNode(ramfs_file_header_t* node) {
   kfree(node->filePtr);
   kfree(node);
+}
+
+struct fs_node* ramfs_getLastChild(struct fs_node* parent) {
+  ramfs_file_header_t* currChild = ((ramfs_file_header_t*)parent)->children;
+  while (currChild->next != NULL) {
+    currChild = currChild->next;
+  }
+  return (struct fs_node*)currChild;
+}
+
+static inline ramfs_file_header_t* ramfs_getLastChild_inter(ramfs_file_header_t* parent) {
+  return (ramfs_file_header_t*)ramfs_getLastChild((struct fs_node*)parent);
 }
 
 int ramfs_init(void) {
@@ -86,57 +82,55 @@ int ramfs_init(void) {
 
   fs_set_root(&root.fs_node);
 
-  return RFS_OK;
+  return VFS_T_OK;
 
   CLEENUP_LABEL(free_curr_dir_simlink, free_mem, currentDirSimlink);
   CLEENUP_DEFAULT_LABEL();
 
-  return RFS_NOK;
+  return VFS_T_NOK;
 }
 
 static int ramfs_inter_deleteNode(ramfs_file_header_t* node) {
-  int ret = RFS_NOK;
+
   if(node->children != NULL) {
-    if(ramfs_inter_deleteNode(node->children) != RFS_OK) {
-      return RFS_NOK;
+    if(ramfs_inter_deleteNode(node->children) != VFS_T_OK) {
+      return VFS_T_NOK;
     }
   }
   if(node->next != NULL) {
-    if(ramfs_inter_deleteNode(node->next) != RFS_OK) {
-      return RFS_NOK;
+    if(ramfs_inter_deleteNode(node->next) != VFS_T_OK) {
+      return VFS_T_NOK;
     }
   }
 
   ramfs_deallocNode(node);
-  return RFS_OK;
+  return VFS_T_OK;
 }
 
 int ramfs_deleteNode(const char* nodeAbsPath) {
   ramfs_file_header_t* node = NULL;
-  ramfs_file_header_t* parent = NULL;
+  ramfs_file_header_t* parentDir = NULL;
   char parentPath[MAX_FNAME];
-  char* tokenContext = NULL;
-  char* prevTokenContext = NULL;
 
   if(fs_getParentPath(nodeAbsPath, parentPath) != RET_T_OK){
-    return RFS_NOK;
+    return VFS_T_NOK;
   }
 
-  parent = fs_get_node(NULL, parentPath);
-  if(parent == NULL) {
-    return RFS_NOK;
+  parentDir = (ramfs_file_header_t*)fs_get_node(NULL, parentPath);
+  if(parentDir == NULL) {
+    return VFS_T_NOK;
   }
 
-  node = fs_get_node(NULL, nodeAbsPath);
+  node = (ramfs_file_header_t*)fs_get_node(NULL, nodeAbsPath);
   if(node == NULL) {
-    return RFS_NOK;
+    return VFS_T_NOK;
   }
 
   /* find node within the children of parent and remove it */
-  if(parent->children == node) {
-    parent->children = node->next;
+  if(parentDir->children == node) {
+    parentDir->children = node->next;
   } else {
-    ramfs_file_header_t* prev = parent->children;
+    ramfs_file_header_t* prev = parentDir->children;
     ramfs_file_header_t* curr = prev->next;
     while(curr != NULL) {
       if(curr == node) {
@@ -147,7 +141,7 @@ int ramfs_deleteNode(const char* nodeAbsPath) {
       curr = curr->next;
     }
     if(curr == NULL) {
-      return RFS_NOK;
+      return VFS_T_NOK;
     }
   }
 
@@ -162,7 +156,7 @@ fs_node_t* ramfs_mkDir(const char* dirName, const char* parentDirAbsPath, int *e
   ramfs_file_header_t* parentDir;
 
   if(err != NULL) {
-    *err = RFS_NOK;
+    *err = VFS_T_NOK;
   }
 
   if(fs_checkFileName(dirName, NULL) != RET_T_OK) {
@@ -174,8 +168,8 @@ fs_node_t* ramfs_mkDir(const char* dirName, const char* parentDirAbsPath, int *e
     CLEENUP(default);
   }
 
-  newDir = fs_find(parentDir, dirName);
-  if(fs_find(parentDir, dirName) != NULL){
+  newDir = (ramfs_file_header_t*)fs_find((fs_node_t*)parentDir, dirName);
+  if(newDir != NULL){
     if(err != NULL) {
       *err = RFS_FILE_ALREADY_EXISTS;
     }
@@ -218,7 +212,7 @@ fs_node_t* ramfs_mkDir(const char* dirName, const char* parentDirAbsPath, int *e
   if(parentDirSimlink == NULL) {
     CLEENUP(cleen_currentDirSimlink);
   }
-  fs_get_simlink("..", parentDir, &parentDirSimlink->fs_node);
+  fs_get_simlink("..", (fs_node_t*)parentDir, &parentDirSimlink->fs_node);
 
   if (newDir->children == NULL) {
     newDir->children = currentDirSimlink;
@@ -226,10 +220,10 @@ fs_node_t* ramfs_mkDir(const char* dirName, const char* parentDirAbsPath, int *e
     parentDirSimlink->next = NULL;
   }
 
-  (get_last_child(parentDir))->next = newDir;
+  (ramfs_getLastChild_inter(parentDir))->next = newDir;
 
   if(err != NULL) {
-    *err = RFS_OK;
+    *err = VFS_T_OK;
   }
 
   return (struct fs_node*)newDir;
@@ -247,7 +241,7 @@ fs_node_t* ramfs_newRegFile(const char* fileName, const char* parentDirAbsPath, 
   ramfs_file_header_t* parentDir;
 
   if(err != NULL) {
-    *err = RFS_NOK;
+    *err = VFS_T_NOK;
   }
 
   if(fs_checkFileName(fileName, NULL) != RET_T_OK) {
@@ -259,7 +253,7 @@ fs_node_t* ramfs_newRegFile(const char* fileName, const char* parentDirAbsPath, 
     CLEENUP(default);
   }
 
-  if(fs_find(parentDir, fileName) != NULL){
+  if(fs_find((fs_node_t*)parentDir, fileName) != NULL){
     if(err != NULL) {
       *err = RFS_FILE_ALREADY_EXISTS;
     }
@@ -289,10 +283,10 @@ fs_node_t* ramfs_newRegFile(const char* fileName, const char* parentDirAbsPath, 
   newRegFile->fs_node.node_ptr = NULL;
   newRegFile->fs_node.impl_def = 0;
 
-  (get_last_child(parentDir))->next = newRegFile;
+  (ramfs_getLastChild_inter(parentDir))->next = newRegFile;
 
   if(err != NULL) {
-    *err = RFS_OK;
+    *err = VFS_T_OK;
   }
 
   return (struct fs_node*)newRegFile;
@@ -310,7 +304,7 @@ int ramfs_loadInitrd(const uint8_t* initrdPtr, char* path) {
   ramfs_file_header_t* parent_dir;
 
   if (UINT32_INITRD_ORDER(initrdHeader->magic) != INITRD_MAGIC) {
-    return RFS_NOK;
+    return VFS_T_NOK;
   }
 
   /* Used to optimize stack */
@@ -318,14 +312,14 @@ int ramfs_loadInitrd(const uint8_t* initrdPtr, char* path) {
 
   curr_dir = (ramfs_file_header_t*) fs_get_node(NULL, path);
   if(curr_dir == NULL || curr_dir->fs_node.type != FTYPE_DIRECTORY) {
-    return RFS_NOK;
+    return VFS_T_NOK;
   }
 
   /* The second children is the simlink to the parent dir */
   parent_dir = ((ramfs_file_header_t*) &curr_dir->fs_node)->children;
   parent_dir = parent_dir->next;
 
-  return LoadInitrdFiles(parent_dir->fs_node.node_ptr, curr_dir, initrd_root);
+  return LoadInitrdFiles((ramfs_file_header_t*)parent_dir->fs_node.node_ptr, curr_dir, initrd_root);
 }
 
 ssize_t ramfs_read(struct fs_node* node, void* buf, size_t nbyte,
@@ -375,23 +369,23 @@ ssize_t ramfs_write(struct fs_node* node, const void* buf, size_t nbyte,
   CLEENUP_LABEL(newFilePtr, free_mem, newFilePtr);
   CLEENUP_DEFAULT_LABEL();
 
-  return RFS_NOK;
+  return VFS_T_NOK;
 }
 
 int ramfs_open(struct fs_node* node, const char* restrict __is_unused mode) {
   // TODO
-  return RFS_OK;
+  return VFS_T_OK;
 }
 
 int ramfs_close(struct fs_node* __is_unused node) {
   // TODO
-  return RFS_OK;
+  return VFS_T_OK;
 }
 
 int ramfs_readdir(struct fs_node* dir_node, uint32_t index,
                     struct dirent* entry, struct dirent** result) {
   ramfs_file_header_t* ramfsNode = (ramfs_file_header_t*)dir_node;
-  int ret = RFS_NOK;
+  int ret = VFS_T_NOK;
   uint32_t i = 0;
 
   *result = NULL;
@@ -399,11 +393,11 @@ int ramfs_readdir(struct fs_node* dir_node, uint32_t index,
   if (dir_node == NULL || dir_node->readdir == NULL ||
       dir_node->type != FTYPE_DIRECTORY) {
     // TODO errno
-    return RFS_NOK;
+    return VFS_T_NOK;
   }
   if (ramfsNode->children == NULL) {
     *result = NULL;
-    ret = RFS_OK;
+    ret = VFS_T_OK;
   } else {
     ramfsNode = ramfsNode->children;
     i = 0;
@@ -420,7 +414,7 @@ int ramfs_readdir(struct fs_node* dir_node, uint32_t index,
       entry->d_reclen = sizeof(dirent_t) - MAX_FNAME + strlen(entry->d_name);
       *result = entry;
     }
-    ret = RFS_OK;
+    ret = VFS_T_OK;
   }
   return ret;
 }
@@ -450,7 +444,7 @@ struct fs_node* ramfs_find(struct fs_node* dir_node, const char* name) {
 }
 
 int ramfs_add_child(struct fs_node* dirNode, struct fs_node* copyChild) {
-  int ret = RFS_NOK;
+  int ret = VFS_T_NOK;
   ramfs_file_header_t* parent = (ramfs_file_header_t*)dirNode;
 
   if (dirNode != NULL && dirNode->type == FTYPE_DIRECTORY) {
@@ -463,9 +457,9 @@ int ramfs_add_child(struct fs_node* dirNode, struct fs_node* copyChild) {
       if (parent->children == NULL) {
         parent->children = ramfs_child;
       } else {
-        (get_last_child(parent))->next = ramfs_child;
+        (ramfs_getLastChild_inter(parent))->next = ramfs_child;
       }
-      ret = RFS_OK;
+      ret = VFS_T_OK;
     }
   }
   return ret;
@@ -578,8 +572,8 @@ static int LoadInitrdFiles(ramfs_file_header_t* parent,
     } else if (initrdchildren[i].type ==
                UINT32_INITRD_ORDER(INITRD_FTYPE_DIR)) {
       curr = LoadInitrdDirFile(&initrdchildren[i]);
-      if(LoadInitrdFiles(currentDir, curr, &initrdchildren[i]) != RFS_OK) {
-        return RFS_NOK;
+      if(LoadInitrdFiles(currentDir, curr, &initrdchildren[i]) != VFS_T_OK) {
+        return VFS_T_NOK;
       }
     } else {
       /* jump to the next cycle */
@@ -593,10 +587,10 @@ static int LoadInitrdFiles(ramfs_file_header_t* parent,
     prev = curr;
   }
 
-  return RFS_OK;
+  return VFS_T_OK;
 
   CLEENUP_LABEL(free_cur_dir_simlink, free_mem, currentDir);
   CLEENUP_DEFAULT_LABEL();
 
-  return RFS_NOK;
+  return VFS_T_NOK;
 }

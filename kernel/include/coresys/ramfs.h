@@ -8,9 +8,14 @@
 /**
  * RAM File System errors codes
  */
-#define RFS_OK                      (0)
-#define RFS_NOK                     (-1)
 #define RFS_FILE_ALREADY_EXISTS     (1)
+
+typedef struct ramfs_file_header {
+  fs_node_t fs_node;
+  void* filePtr;
+  struct ramfs_file_header* next;     /* same level nodes */
+  struct ramfs_file_header* children; /* children nodes */
+} ramfs_file_header_t;
 
 int ramfs_init(void);
 
@@ -34,6 +39,8 @@ int ramfs_readdir(struct fs_node* dir_node,
                     struct dirent **result);
 
 struct fs_node* ramfs_find(struct fs_node* dir_node, const char* name);
+
+struct fs_node* ramfs_getLastChild(struct fs_node* parent);
 
 fs_node_t* ramfs_mkDir(const char* dirName, const char* parentDirAbsPath, int *err);
 

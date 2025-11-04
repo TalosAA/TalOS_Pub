@@ -5,6 +5,9 @@
 #include <libk/stddef.h>
 #include <libk/stdint.h>
 
+#define VFS_T_NOK (-1)
+#define VFS_T_OK  (0)
+
 #define MAX_FNAME (128)
 #define MAX_PATH  (255)
 
