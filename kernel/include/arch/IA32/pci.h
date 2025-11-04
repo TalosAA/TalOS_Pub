@@ -3,6 +3,7 @@
 
 #include <libk/stdint.h>
 #include <libk/stddef.h>
+#include <coresys/vfs.h>
 
 /**
  * PCI topology definitions
@@ -21,19 +22,11 @@
 /**
  * PCI headers definitions
  */
-#define PCI_COMMON_HDR_SIZE          (16)
 #define PCI_HDR_CLASS_CODE_SIZE      (3)
 #define PCI_HDR_IS_MULTIFUNCTION     (0x80)
 
 #define PCI_BRIDGE_BASECLASS         (0x06)
 #define PCI_TO_PCI_BRIDGE_SUBCLASS   (0x04)
-
-#define PCI_HDR_00_BASE_ADDR_REGS_N  (6)
-#define PCI_HDR_00_RESERVED_SIZE     (7)
-
-#define PCI_HDR_01_BASE_ADDR_REGS_N  (2)
-#define PCI_HDR_01_RESERVED_SIZE     (3)
-#define PCI_HDR_01_SEC_BUS_OFFSET    (PCI_COMMON_HDR_SIZE + 9)
 
 /**
  * Invalid vendor ID.
@@ -42,12 +35,20 @@
 
 /** 
  * PCI common header definitions
-*/
-#define PCI_HDR_VENDORID_OFFSET      (0x00)
-#define PCI_HDR_REG_LV_PROG_INTERF   (0x09)
-#define PCI_HDR_BASECLASS_OFFSET     (0x0B)
-#define PCI_HDR_SUBCLASS_OFFSET      (0x0A)
-#define PCI_HDR_TYPE_OFFSET          (0x0E)
+ */
+#define PCI_HDR_VENDORID_OFFSET       (0x00)
+#define PCI_HDR_DEVICEID_OFFSET       (0x02)
+#define PCI_HDR_COMMAND_OFFSET        (0x04)
+#define PCI_HDR_STATUS_OFFSET         (0x06)
+#define PCI_HDR_REVISION_ID_OFFSET    (0x08)
+#define PCI_HDR_CLASS_CODE_OFFSET     (0x09)
+#define PCI_HDR_REG_LV_PROG_INTERF    (0x09)
+#define PCI_HDR_SUBCLASS_OFFSET       (0x0A)
+#define PCI_HDR_BASECLASS_OFFSET      (0x0B)
+#define PCI_HDR_CACHELINE_SIZE_OFFSET (0x0C)
+#define PCI_HDR_LATENCY_TIME_OFFSET   (0x0D)
+#define PCI_HDR_TYPE_OFFSET           (0x0E)
+#define PCI_HDR_BITS_OFFSET           (0x0F)
 
 typedef struct __is_packed {
   uint16_t VendorID;
@@ -61,6 +62,24 @@ typedef struct __is_packed {
   uint8_t  HeaderType;
   uint8_t  BITS;
 } PCI_common_header;
+
+/** 
+ * PCI header type 00 definitions
+ */
+#define PCI_HDR_00_BASE_ADDR_REGS_N   (6)
+#define PCI_HDR_00_RESERVED_SIZE      (7)
+#define PCI_HDR_00_BAR_OFFSET         (sizeof(PCI_common_header))
+#define PCI_HDR_00_CBUS_CIS_OFFSET    (PCI_HDR_00_BAR_OFFSET +\
+                                       PCI_HDR_00_BASE_ADDR_REGS_N * 4)
+#define PCI_HDR_00_SUBSYS_VENDOR_OFFSET (PCI_HDR_00_CBUS_CIS_OFFSET + 4)
+#define PCI_HDR_00_SUBSYS_ID_OFFSET    (PCI_HDR_00_SUBSYS_VENDOR_OFFSET + 2)
+#define PCI_HDR_00_EXROMADDR_OFFSET    (PCI_HDR_00_SUBSYS_ID_OFFSET + 2)
+#define PCI_HDR_00_CAPABILITIES_OFFSET (PCI_HDR_00_SUBSYS_ID_OFFSET + 4)
+#define PCI_HDR_00_INT_LINE_OFFSET     (PCI_HDR_00_CAPABILITIES_OFFSET +\
+                                        PCI_HDR_00_RESERVED_SIZE)
+#define PCI_HDR_00_INT_PIN_OFFSET      (PCI_HDR_00_INT_LINE_OFFSET + 1)
+#define PCI_HDR_00_MIN_GRANT_OFFSET    (PCI_HDR_00_INT_PIN_OFFSET + 1)
+#define PCI_HDR_00_MAX_LAT_OFFSET      (PCI_HDR_00_MIN_GRANT_OFFSET + 1)
 
 typedef struct __is_packed {
   PCI_common_header commhdr;
@@ -78,6 +97,11 @@ typedef struct __is_packed {
 } PCI_type_00_hdr;
 
 /* PCI-to-PCI bridge header (type 0x1)*/
+
+#define PCI_HDR_01_BASE_ADDR_REGS_N  (2)
+#define PCI_HDR_01_RESERVED_SIZE     (3)
+#define PCI_HDR_01_SEC_BUS_OFFSET    (sizeof(PCI_common_header) + 9)
+
 typedef struct __is_packed {
   PCI_common_header commhdr;
   uint32_t BaseAddressRegisters[PCI_HDR_01_BASE_ADDR_REGS_N];
@@ -132,5 +156,15 @@ typedef struct __is_packed {
 } PCI_type_02_hdr;
 
 int pci_scan(void);
+
+ssize_t pci_vfs_confing_read(struct fs_node* node,
+                             void* buf,
+                             size_t nbyte,
+                             off_t offset);
+
+ssize_t pci_vfs_confing_write(struct fs_node* node,
+                              const void* buf,
+                              size_t nbyte,
+                              off_t offset);
 
 #endif

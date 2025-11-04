@@ -1,4 +1,5 @@
 #include <libk/stdint.h>
+#include <libk/kheap.h>
 #include <hal/bootloader.h>
 #include <hal/mmap.h>
 #include <IA32/multiboot.h>
@@ -11,14 +12,14 @@ void bl_GetModules(bootloader_module_t** modules, uint32_t* nModules) {
   multiboot_module_t* mbmodule = (multiboot_module_t*)multiboot_info->mods_addr;
   uint32_t i = 0;
   
-  *modules = kmalloc(multiboot_info->mods_count * sizeof(bootloader_module_t));
+  *modules = (bootloader_module_t*)kmalloc(multiboot_info->mods_count * sizeof(bootloader_module_t));
   if(*modules == NULL) {
     //TODO PANIC
     while (1);
   }
 
-  for(i = 0; i < multiboot_info->mods_count; i++) {
-    (*modules)[i].mod_start = mbmodule[i].mod_start;
+  for(i = 0; i < (uint32_t)multiboot_info->mods_count; i++) {
+    (*modules)[i].mod_start = (bootloader_module_t*)mbmodule[i].mod_start;
     (*modules)[i].mod_size = mbmodule[i].mod_end - mbmodule[i].mod_start;
   }
 

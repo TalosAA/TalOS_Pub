@@ -44,7 +44,7 @@ void page_mapping(uint32_t* pPageTable, uint32_t phyAddrStart,
 }
 
 bool is_mapped(void* logiAddress, size_t size) {
-  uintptr_t pageAddr = NULL;
+  uintptr_t pageAddr = UINTPTR_NULL;
   size_t sizePag = PAGE_ALIGN_CEIL(size) / PAGE_SIZE;
   uint32_t* pageTable = NULL;
   uint32_t i = 0;

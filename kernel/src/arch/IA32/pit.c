@@ -10,7 +10,7 @@
 
 void PIT_set_mode(uint8_t mode, uint8_t ch) {
   /* Set the mode */
-  outb((ch << 10) | mode, PIT_CMD_PORT);
+  outb(((ch << 10) & 0xFF) | mode, PIT_CMD_PORT);
 }
 
 uint32_t PIT_get_count(uint8_t ch){
@@ -19,8 +19,8 @@ uint32_t PIT_get_count(uint8_t ch){
   /* al = channel in bits 6 and 7, remaining bits clear */
   outb(ch, PIT_CMD_PORT);
  
-  count = inb(ch);          /* Low byte */
-  count |= inb(ch) << 8;    /* High byte */
+  count = inb(ch);                   /* Low byte */
+  count |= (inb(ch) << 8) & 0xFF;    /* High byte */
  
   return count;
   

@@ -76,7 +76,7 @@ void PIC_IRQ_set_mask(unsigned char IRQline) {
         port = PIC2_DATA;
         IRQline -= 8;
     }
-    value = inb(port) | (1 << IRQline);
+    value = inb(port) | ((1 << IRQline) & 0xFF);
     outb(value, port);        
 }
 
@@ -91,7 +91,7 @@ void PIC_IRQ_clear_mask(unsigned char IRQline) {
         port = PIC2_DATA;
         IRQline -= 8;
     }
-    value = inb(port) & ~(1 << IRQline);
+    value = inb(port) & ~((1 << IRQline) & 0xFF);
     outb(value, port);        
 }
 

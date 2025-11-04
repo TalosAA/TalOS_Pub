@@ -48,9 +48,9 @@ void *acpi_find_table(void *SDTStart, char *tableSignature)
   for (i = 0; i < tabsNum; i++)
   {
       if(isXSDT) {
-        retHdr = (acpi_header_t *) XSDT->PointerToOtherSDT[i];
+        retHdr = (acpi_header_t *)(uintptr_t)XSDT->PointerToOtherSDT[i];
       } else {
-        retHdr = (acpi_header_t *) RSDT->PointerToOtherSDT[i];
+        retHdr = (acpi_header_t *)(uintptr_t)RSDT->PointerToOtherSDT[i];
       }
       if (!memcmp(retHdr->Signature, tableSignature, ACPI_SIGN_LEN))
           return (void *) retHdr;
@@ -72,7 +72,7 @@ bool acpi_get_MADT_info(RSDP_hdr_descr_t* RSDP_ptr, MADT_info_t* MADT_Info_out)
 
   if(RSDP_ptr != NULL && RSDP_ptr->RsdtAddress != 0) {
 
-    MADT_header = (acpi_header_t*)acpi_find_table(RSDP_ptr->RsdtAddress, MADT_LABEL);
+    MADT_header = (acpi_header_t*)acpi_find_table((void*)RSDP_ptr->RsdtAddress, MADT_LABEL);
 
     if(MADT_header != NULL) {
       /* Verify checksum of the MADT and parse the table */

@@ -237,14 +237,14 @@ ssize_t serial_fs_read(struct fs_node* node, const void* buf, size_t nbyte,
 }
 
 void Serial_IRQ(uint32_t code) {
-  unsigned short serial = COM1;
+  // unsigned short serial = COM1;
 
-  /* TODO Serial IRQ mapping */
-  if ((code - HW_INT_START) == 4) {
-    serial = COM1;
-  } else if ((code - HW_INT_START) == 3) {
-    serial = COM2;
-  }
+  // /* TODO Serial IRQ mapping */
+  // if ((code - HW_INT_START) == 4) {
+  //   serial = COM1;
+  // } else if ((code - HW_INT_START) == 3) {
+  //   serial = COM2;
+  // }
 
   printf("Serial IRQ\n");
 }

@@ -12,7 +12,7 @@ void Set_GDT_descriptor(gdt_entry_t* inGdt,
     descriptor->base_mid           = ((uint32_t)base >> 16)  & 0xFF;
     descriptor->p_dpl_s_type       = p_dpl_s_type;
     descriptor->g_db_a_limit_high  = ((uint32_t)limit >> 16 & 0xF) 
-                                   | (flags << 4);
+                                   | ((flags << 4) & 0xFF);
     descriptor->base_high          = ((uint32_t)base >> 24) & 0xFF;
 }
 

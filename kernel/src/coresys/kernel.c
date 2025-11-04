@@ -174,11 +174,12 @@ void kernel_main(void) {
   char* wait[] = {"<*    >", "< *   >", "<  *  >", "<   * >", "<    *>",
                   "<   * >", "<  *  >", "< *   >" };
   unsigned char i = 0;
+  unsigned char k = 0;
   char key = 0;
   mem_map_t memMap;
   uint32_t availMem = 0;
-  char* node = NULL;
-  char* tokenCon = NULL;
+  // char* node = NULL;
+  // char* tokenCon = NULL;
 
   kernel_init();
   printf("Start Kernel\n");
@@ -207,6 +208,9 @@ void kernel_main(void) {
 
   dirent_t entry;
   dirent_t* retEntry;
+  dirent_t entry_nested;
+  dirent_t* retEntry_nested;
+  char currDir[MAX_FNAME];
 
   printf("/\n", retEntry->d_name);
   i = 0;
@@ -241,6 +245,18 @@ void kernel_main(void) {
     fs_readdir(fs_get_node(NULL, "/sys/device/pci"), i, &entry, &retEntry);
     if(retEntry != NULL)
       printf("        %s\n", retEntry->d_name);
+    k = 0;
+    if(retEntry != NULL) {
+      do {
+        if(retEntry->d_name[0] != '.') {
+          sprintf(currDir, "%s%s","/sys/device/pci/", retEntry->d_name);
+          fs_readdir(fs_get_node(NULL, currDir), k, &entry_nested, &retEntry_nested);
+          if(retEntry_nested != NULL)
+            printf("                %s\n", retEntry_nested->d_name);
+        }
+        k++;
+      } while(retEntry_nested != NULL);
+    }
     i++;
   } while(retEntry != NULL);
 
