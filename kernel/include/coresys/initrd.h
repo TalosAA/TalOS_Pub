@@ -10,7 +10,7 @@
 #define INITRD_MAGIC          (0x696E7264)
 
 #ifdef __ORDER_LITTLE_ENDIAN__
-  #define UINT32_INITRD_ORDER(input)   (input)
+  #define UINT32_INITRD_ORDER(__input__)   (__input__)
 #else
   #define UINT32_INITRD_ORDER(input)   (((input >> 24)&0xff) | \
                                        ((input << 8) & 0xff0000) | \

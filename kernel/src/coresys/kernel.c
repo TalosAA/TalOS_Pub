@@ -103,6 +103,7 @@ void kernel_init_fs(void) {
   uint32_t i = 0;
 
   kernel_initramfs();
+  devfs_init();
 
   bl_GetModules(&modules, &nModules);
   if(nModules == 0) {
@@ -216,6 +217,15 @@ void kernel_main(void) {
   i = 0;
   do {
     fs_readdir(fs_get_node(NULL, "/"), i, &entry, &retEntry);
+    if(retEntry != NULL)
+      printf("    %s\n", retEntry->d_name);
+    i++;
+  } while(retEntry != NULL);
+
+  printf("/dev\n", retEntry->d_name);
+  i = 0;
+  do {
+    fs_readdir(fs_get_node(NULL, "/dev"), i, &entry, &retEntry);
     if(retEntry != NULL)
       printf("    %s\n", retEntry->d_name);
     i++;

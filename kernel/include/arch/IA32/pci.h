@@ -17,7 +17,7 @@
  */
 #define PCI_CONFIG_ADDRESS           (0xCF8)
 #define PCI_CONFIG_DATA              (0xCFC)
-#define PCI_ENABLE_BIT               (1<<31)
+#define PCI_ENABLE_BIT               (0x80000000)
 
 /**
  * PCI headers definitions

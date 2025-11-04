@@ -21,7 +21,7 @@ int ramfs_init(void);
 
 int ramfs_loadInitrd(const uint8_t* initrdPtr, char* path);
 
-int ramfs_add_child(struct fs_node* dirNode, struct fs_node* copyChild);
+int ramfs_addChild(struct fs_node* dirNode, struct fs_node* copyChild);
 
 ssize_t ramfs_read(struct fs_node* node, void* buf, size_t nbyte,
                     off_t offset);

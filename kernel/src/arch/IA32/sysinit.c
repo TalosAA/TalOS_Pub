@@ -156,7 +156,7 @@ errno_t ReadSystemConfig(void) {
       }
 
       /* Find NMI */
-      for(i = 0; (i < MADT_Info.NMI_Num && i < INT_NUM); i++) {
+      for(i = 0; (i < MADT_Info.NMI_Num && i < MAX_NMI_NUM); i++) {
         k = 0;
         while(k < INT_NUM) {
           if(MADT_Info.NMI_Source[i]->GlobalSysInt ==
@@ -418,7 +418,7 @@ void GetSysConfiguration(SysConf_t* SysConf) {
  * Static Functions Definitions
  */
 static void Default_ISR(uint32_t code) {
-  printf("IRQ raised but not managed; code: %d\n", code);
+  printf("IRQ raised but not managed; code: %u\n", code);
 }
 
 static void Set_EOI_handler(SendEOI_t* fun) {

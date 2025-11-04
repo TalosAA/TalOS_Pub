@@ -443,7 +443,7 @@ struct fs_node* ramfs_find(struct fs_node* dir_node, const char* name) {
   return retNode;
 }
 
-int ramfs_add_child(struct fs_node* dirNode, struct fs_node* copyChild) {
+int ramfs_addChild(struct fs_node* dirNode, struct fs_node* copyChild) {
   int ret = VFS_T_NOK;
   ramfs_file_header_t* parent = (ramfs_file_header_t*)dirNode;
 
