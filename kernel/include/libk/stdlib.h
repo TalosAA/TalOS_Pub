@@ -2,6 +2,7 @@
 #define _STDLIB_H_
 
 int atoi(const char *nptr);
+unsigned int atou(const char *nptr);
 void itoa(int input, char *buffer, int base);
 void uitoa(unsigned int input, char *buffer, int base);
 void litoa(long input, char *buffer, int base);

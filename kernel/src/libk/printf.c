@@ -19,16 +19,20 @@ static void* copy_to_stdout(void* restrict dest, const void* restrict src, size_
   return ((void*)dest);
 }
 
+#define MAX_STR_NUM    (41)
+
 static int print_number(char* buff_out, copy_fun_t* cpy_fun,
-                        char* str_num, ssize_t precision,
-                        ssize_t width, ssize_t zero_pad,
+                        char* str_num, size_t precision,
+                        size_t width, size_t zero_pad,
                         size_t max_write, size_t* written, 
                         size_t maxrem) {
   int exit = 0;
-  size_t len = strlen(str_num);
+  ssize_t len = (ssize_t)strnlen(str_num, MAX_STR_NUM);
+  ssize_t intWidth = ((ssize_t)width) > 0 ? (ssize_t)width : 0;
+  ssize_t intPrecision = ((ssize_t)precision) > 0 ? (ssize_t)precision : 0;
 
   /* print zero pad */
-  if(len >= width) {
+  if(len >= intWidth) {
     zero_pad = 0;
   }
   while(zero_pad > 0){
@@ -42,23 +46,23 @@ static int print_number(char* buff_out, copy_fun_t* cpy_fun,
     }
     (*written)++;
     zero_pad--;
-    width--;
+    intWidth--;
   }
 
   /* Manage width */
-  if(precision > 0){
-    width = width - precision;
+  if(intPrecision > 0){
+    intWidth = intWidth - intPrecision;
     if(str_num[0] == '-'){
-      width--;
+      intWidth--;
     }
   } else {
-    width = width - len;
+    intWidth = intWidth - len;
   }
-  if(width < 0){
-    width = 0;
+  if(intWidth < 0) {
+    intWidth = 0;
   }
   /* print spaces */
-  while(width > 0){
+  while(intWidth > 0){
     char space = ' ';
     if(((*written) + 2) > max_write){
       /* exit */
@@ -68,11 +72,11 @@ static int print_number(char* buff_out, copy_fun_t* cpy_fun,
       return -1;
     } 
     (*written)++;
-    width--;
+    intWidth--;
   }
 
   /* Manage precision */
-  if((size_t)precision > len || (str_num[0] == '-' && ((size_t)precision + 1) > len)){
+  if(intPrecision > len || (str_num[0] == '-' && (intPrecision + 1) > len)){
     /* write sign */
     if(str_num[0] == '-'){
       if(((*written) + 2) > max_write){
@@ -86,8 +90,8 @@ static int print_number(char* buff_out, copy_fun_t* cpy_fun,
       str_num++;
       len--;
     }
-    precision -= len;
-    while(precision > 0){
+    intPrecision -= len;
+    while(intPrecision > 0){
       char to_write = '0';
       if(((*written) + 2) > max_write){
         break;
@@ -95,12 +99,12 @@ static int print_number(char* buff_out, copy_fun_t* cpy_fun,
       if(cpy_fun(buff_out + *written, (void*) &to_write, 1) != (buff_out + *written)){
         return -1;
       } 
-      precision--;
+      intPrecision--;
       (*written)++;
     }
   }
 
-  if (maxrem < len) {
+  if (maxrem < (size_t)len) {
     // TODO: Set errno to EOVERFLOW.
     return -1;
   }
@@ -123,9 +127,9 @@ static int gen_printf(char* buff_out, copy_fun_t* cpy_fun, size_t n, const char 
   size_t written = 0;
   int exit = 0;
   const char* format_begun_at = 0;
-  ssize_t width = 0;
-  ssize_t precision = 0;
-  ssize_t zero_pad = 0;
+  size_t width = 0;
+  size_t precision = 0;
+  size_t zero_pad = 0;
 
   while ((*format != '\0') && !exit) {
     size_t maxrem = UINT_MAX - written;
@@ -168,14 +172,14 @@ static int gen_printf(char* buff_out, copy_fun_t* cpy_fun, size_t n, const char 
       }
 
       /* width field */
-      width = atoi(format);
+      width = (size_t)atou(format);
       while (*format >= 0x30 && *format <= 0x39)
         format++;
     }
     if(*format == '.'){
       /* precision field */
       format++;
-      precision = atoi(format);
+      precision = (size_t)atou(format);
       while (*format >= 0x30 && *format <= 0x39)
         format++;
     }

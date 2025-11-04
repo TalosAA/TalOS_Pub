@@ -26,7 +26,7 @@
                     (((input) >> (start)) & (BITSET_INT64 >> (64 - len)))
 
 /* To little to big endian */
-#define UINT32_SWAP_ENDIAN(input)       (((input>>24)&0xff) | \
+#define UINT32_SWAP_ENDIAN(input)       (((input>>24) & 0xff) | \
                                         ((input << 8) & 0xff0000) | \
                                         ((input >> 8) & 0xff00) | \
                                         ((inpu << 24) & 0xff000000)
